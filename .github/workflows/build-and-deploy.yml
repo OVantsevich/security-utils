@@ -1,0 +1,99 @@
+name: Docker Image CI/CD
+
+on:
+  pull_request:
+    types:
+     - closed
+    branches:
+     - 'master'
+  workflow_dispatch:
+
+jobs:
+  docker-build-push:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@v3
+      
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+      
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ secrets.DOCKER_HUB_USERNAME }}/${{ vars.IMAGE_NAME }}
+      
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_HUB_USERNAME }}/${{ vars.IMAGE_NAME }}:latest
+        labels: ${{ steps.meta.outputs.labels }}
+  deploy-via-ssh:
+    needs: docker-build-push
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        path: 'Deployment'
+        
+    - name: install ssh keys
+      uses: appleboy/ssh-action@master
+      env:
+        CONTAINER_NAME: ${{ vars.CONTAINER_NAME }}
+        CONTAINER_PORT: ${{ vars.CONTAINER_PORT }}
+        EXTERNAL_PORT:  ${{ vars.EXTERNAL_PORT }}
+        IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+        DB_NAME: ${{ vars.DB_NAME }}
+        DB_HOST: ${{ vars.DB_HOST }}
+        DB_PORT: ${{ vars.DB_PORT }}
+        SITE_NAME: ${{ vars.SITE_NAME }}
+        ACCESS_COOKIE: ${{ vars.ACCESS_COOKIE }}
+        JWT_ISSUER: ${{ vars.JWT_ISSUER }}
+        USER_ID_CLAIM: ${{ vars.USER_ID_CLAIM }}
+        SERVER_ID_CLAIM: ${{ vars.SERVER_ID_CLAIM }}
+        
+        DB_USER: ${{ secrets.DB_USER }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        JWT_KEY: ${{ secrets.JWT_KEY }}
+        JWT_SERVER_KEY: ${{ secrets.JWT_SERVER_KEY }}
+        API_KEY: ${{ secrets.API_KEY }}
+        DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        password: ${{ secrets.SSH_PASSWORD }}
+        envs: |
+          CONTAINER_NAME, CONTAINER_PORT, EXTERNAL_PORT, IMAGE_NAME, SITE_NAME, 
+          DB_NAME, DB_HOST, DB_PORT, 
+          ACCESS_COOKIE, JWT_ISSUER, USER_ID_CLAIM, SERVER_ID_CLAIM, 
+          DB_USER, DB_PASSWORD, API_KEY, JWT_KEY, JWT_SERVER_KEY, DOCKER_HUB_USERNAME
+        script: |
+          docker stop $CONTAINER_NAME || true
+          docker rm $CONTAINER_NAME || true
+          docker pull $DOCKER_HUB_USERNAME/$IMAGE_NAME:latest
+          docker run -d \
+            -e SITE_NAME="$SITE_NAME" \
+            -e DB_NAME="$DB_NAME" \
+            -e DB_HOST="$DB_HOST" \
+            -e DB_PORT="$DB_PORT" \
+            -e ACCESS_COOKIE="$ACCESS_COOKIE" \
+            -e JWT_ISSUER="$JWT_ISSUER" \
+            -e USER_ID_CLAIM="$USER_ID_CLAIM" \
+            -e SERVER_ID_CLAIM="$SERVER_ID_CLAIM" \
+            -e DB_USER="$DB_USER" \
+            -e DB_PASSWORD="$DB_PASSWORD" \
+            -e API_KEY="$API_KEY" \
+            -e JWT_KEY="$JWT_KEY" \
+            -e JWT_SERVER_KEY="$JWT_SERVER_KEY" \
+            --name $CONTAINER_NAME \
+            -p $EXTERNAL_PORT:$CONTAINER_PORT \
+            $DOCKER_HUB_USERNAME/$IMAGE_NAME:latest
