@@ -30,6 +30,6 @@ jobs:
           docker rm $CONTAINER_NAME || true
           docker pull $DOCKER_HUB_USERNAME/$IMAGE_NAME:latest
           docker run -d \
+            --network host \
             --name $CONTAINER_NAME \
-            -p $12345:$12345 \
             $DOCKER_HUB_USERNAME/$IMAGE_NAME:latest
