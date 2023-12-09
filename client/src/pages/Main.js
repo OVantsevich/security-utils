@@ -1,6 +1,7 @@
 import Header from '../components/Header';
 import {BrowserRouter as Router, Route, Routes} from "react-router-dom";
 import Gobuster from "../components/Gobuster";
+import Nmap from "../components/Nmap";
 import React from "react";
 
 const Main = ({ toggleMode }) => {
@@ -9,6 +10,7 @@ const Main = ({ toggleMode }) => {
             <Header />
             <Routes>
                 <Route path="/gobuster" element={<Gobuster/>} />
+                <Route path="/nmap" element={<Nmap/>} />
             </Routes>
         </Router>
     );

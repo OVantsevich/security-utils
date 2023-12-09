@@ -5,8 +5,6 @@ function Gobuster() {
     const [domain, setDomain] = useState('');
     const [showOption, setShowOption] = useState('none'); // 'none', 'CNAME', 'IP'
 
-    const [showCNAME, setShowCNAME] = useState(false);
-    const [showIPs, setShowIPs] = useState(false);
     const [timeout, setTimeout] = useState('1s');
     const [threads, setThreads] = useState(10);
     const [results, setResults] = useState([]);
