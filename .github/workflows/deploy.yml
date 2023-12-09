@@ -22,7 +22,7 @@ jobs:
       with:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
-        password: ${{ secrets.SSH_PRIVATE_KEY }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
         envs: |
           CONTAINER_NAME, IMAGE_NAME, DOCKER_HUB_USERNAME
         script: |
