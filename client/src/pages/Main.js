@@ -1,7 +1,7 @@
 import Header from '../components/Header';
-import {BrowserRouter as Router, Route, Routes} from "react-router-dom";
 import Gobuster from "../components/Gobuster";
 import Nmap from "../components/Nmap";
+import {BrowserRouter as Router, Route, Routes} from "react-router-dom";
 import React from "react";
 
 const Main = ({ toggleMode }) => {

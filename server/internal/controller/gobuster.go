@@ -71,7 +71,5 @@ func (g *Gobuster) Dns(c echo.Context) error {
 		}
 	}
 
-	log.Print(response)
-
 	return c.JSON(http.StatusOK, response)
 }

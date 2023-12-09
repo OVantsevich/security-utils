@@ -15,7 +15,7 @@ function Gobuster() {
         try {
             setLoading(true);
             console.log("fetching")
-            const response = await fetch('http://localhost:12345/api/gobuster-scan', {
+            const response = await fetch('http://localhost:12345/api/gobuster/scan', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

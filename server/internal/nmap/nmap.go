@@ -56,7 +56,7 @@ func (n *Nmap) GetXML(ctx context.Context, parameters model.NmapScanParameters) 
 	if item, ok := n.cache[hash(parameters)]; ok && time.Now().Before(item.ttl) {
 		xmlFilename := fmt.Sprintf("%s.xml", item.filename)
 
-		data, err := os.ReadFile(xmlFilename)
+		data, err := os.ReadFile(n.filesDir + xmlFilename)
 		if err != nil {
 			return nil, fmt.Errorf("os.ReadFile: %w", err)
 		}

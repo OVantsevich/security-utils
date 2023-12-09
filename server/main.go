@@ -7,20 +7,29 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
-	"github.com/OVantsevich/security-utils/server/internal/config"
 	"github.com/OVantsevich/security-utils/server/internal/controller"
 	"github.com/OVantsevich/security-utils/server/internal/nmap"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-func clean(stop func() error, FilesStorageDirectory string) {
+const (
+	nmapCacheTTL = time.Minute * 5
+
+	indexHTMl = "/index.html"
+
+	apiGroupPrefix = "/api"
+	port           = "12345"
+)
+
+func gracefulShutdown(stop func() error, FilesStorageDirectory string) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	<-sigCh
-	files, err := filepath.Glob(FilesStorageDirectory + "/*.xml")
+	files, err := filepath.Glob(FilesStorageDirectory + "*.xml")
 	if err != nil {
 		log.Fatalf("can't get files .xml: %v", err)
 	}
@@ -37,43 +46,33 @@ func clean(stop func() error, FilesStorageDirectory string) {
 }
 
 func main() {
-	cfg, err := config.New()
-	if err != nil {
-		log.Fatalf("can't parse configuration: %v", err)
-	}
+	filesStorageDirectory := "/bin/db/"
+	frontEndFilesStorageDirectory := "/bin/static"
+
 	e := echo.New()
+	go gracefulShutdown(e.Close, filesStorageDirectory)
 
-	go clean(e.Close, cfg.FilesStorageDirectory)
-
-	nmapService := nmap.NewNmap(cfg.NmapCacheTTl, cfg.FilesStorageDirectory)
+	nmapService := nmap.NewNmap(nmapCacheTTL, filesStorageDirectory)
 	nmapController := controller.NewNmap(nmapService)
+	gobusterController := controller.NewGobuster("/bin/db/wordlist.txt")
 
-	e.GET("/api/tools", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, []struct {
-			Id   string `json:"id,omitempty"`
-			Name string `json:"name,omitempty"`
-		}{
-			{
-				Id:   "0",
-				Name: "gobuster",
-			},
-			{
-				Id:   "1",
-				Name: "nmap",
-			},
-		})
+	apiGroup := e.Group(apiGroupPrefix)
+
+	apiGroup.POST("/gobuster/scan", gobusterController.Dns)
+
+	apiGroup.POST("/nmap/scan", nmapController.Scan)
+	apiGroup.POST("/nmap/report", nmapController.Report)
+
+	e.Static("/static", frontEndFilesStorageDirectory)
+	e.GET("", func(c echo.Context) error {
+		index, err := os.ReadFile(frontEndFilesStorageDirectory + indexHTMl)
+		if err != nil {
+			log.Printf("os.ReadFile: %v", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		return c.HTML(http.StatusOK, string(index))
 	})
-	gobuster := controller.NewGobuster("/home/oleg/GolandProjects/safqa/security-utils/server/wordlist.txt")
-	e.POST("/api/gobuster-scan", gobuster.Dns)
-
-	e.POST("/api/nmap/scan", nmapController.Scan)
-	e.POST("/api/nmap/report", nmapController.Report)
 
 	e.Use(middleware.CORS())
-	e.Static("/static", "server/static")
-	e.GET("", func(c echo.Context) error {
-		fil,
-			c.HTML()
-	})
-	e.Start("localhost:12345")
+	log.Fatal(e.Start("localhost:" + port))
 }
